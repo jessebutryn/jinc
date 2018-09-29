@@ -1,2 +1,2 @@
 # jinc
-node tool for determining incident priority/impact
+bash tool for determining incident priority/impact
