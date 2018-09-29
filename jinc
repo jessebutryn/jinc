@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+#
+# Copyright (c) 2018 Joyent Inc.
+#
+# SCRIPT: jinc
+# AUTHOR: Jesse_b
+# DATE: 2018-09-20
+# REV: 1.0B
+#
+# PLATFORM: Not platform dependent
+#
+# PURPOSE: This script will take information about an incident and determine priority.
+#
+# REV LIST:
+# DATE: DATE_of_REVISION
+# BY: AUTHOR_of_MODIFICATION
+# MODIFICATION: Describe what was modified, new features, etc--
+#
+# set -n
+#
+# set -x
+#
+_clouds=(JPC SPC)
+_jpc_locs=(US-WEST-1 US-SW-1 US-EAST-1 US-EAST-2 US-EAST-3 EU-AMS-1 US-EAST-3B)
+_spc_locs=(
+	US-EAST-1A US-EAST-1B US-EAST-1C
+	US-EAST-MANTA US-EAST-AWS
+	EU-CENTRAL-1A EU-CENTRAL-1B EU-CENTRAL-1C
+	EU-CENTRAL-MANTA EU-CENTRAL-AWS
+	AP-SOUTHEAST-1A AP-SOUTHEAST-1B AP-SOUTHEAST-1C
+	AP-SOUTHEAST-MANTA AP-SOUTHEAST-AWS
+	AP-NORTHEAST-1A AP-NORTHEAST-1B AP-NORTHEAST-1C
+	AP-NORTHEAST-MANTA AP-NORTHEAST-AWS
+)
+_score=0
+PS3='JINC§ '
+#
+#
+echo.error () { # Takes input and sends to STDERR as bold text.
+	if [[ "$1" == '-e' ]]; then
+		shift
+		echo -e "${TXT_BLD}[$(date '+%Y%m%dT%H%M%S%Z')]: $@ ${TXT_RST}" >&2
+	else
+		echo "${TXT_BLD}[$(date '+%Y%m%dT%H%M%S%Z')]: $@ ${TXT_RST}" >&2
+	fi
+} # end echo.error
+prompt.array () {
+	local array=($@)
+	select item in "${array[@]}"; do
+		printf '%s\n' "$item" && break
+	done
+}
+select.loc () {
+	if [[ $cloud == 'JPC' ]]; then
+		printf '%s\n' 'What location did the incident take place in?' >&2
+		prompt.array "${_jpc_locs[@]}"
+	elif [[ $cloud == 'SPC' ]]; then
+		printf '%s\n' 'What location did the incident take place in?' >&2
+		prompt.array "${_spc_locs[@]}"
+	else
+		echo.error "Error! Unknown cloud selected"
+		exit 1
+	fi
+}
+select.service () {
+	select service in Triton Manta Network Other; do
+		case $service in
+			Triton)
+				((_score+2))
+				printf '%s\n' 'Triton'
+				break
+			;;
+			Manta)
+				((_score+2))
+				printf '%s\n' 'Manta'
+				break
+			;;
+			Network)
+				((_score+2))
+				printf '%s\n' 'Network'
+				break
+			;;
+			Other)
+				((_score++))
+				printf '%s\n' 'Other'
+				break
+			;;
+			*)
+				echo.error 'Unknown service selected.'
+				exit 1
+			;;
+		esac
+	done
+}
+select.triton.I () {
+	select impact in Headnode 'Compute Node' Service; do
+		case $impact in
+			Headnode)
+				((_score+2))
+				printf '%s\n' 'Headnode'
+				break
+			;;
+			'Compute Node')
+				((_score++))
+				printf '%s\n' 'Compute Node'
+				break
+			;;
+			Service)
+				((_score++))
+				printf '%s\n' 'Service'
+				break
+			;;
+			*)
+				echo.error 'Unknown service selected.'
+				exit 1
+			;;
+		esac
+	done
+}
+select.manta.I () {
+	select impact in 'Metadata Node' Shrimp 'AWS Migration'; do
+		case $impact in
+			'Metadata Node')
+				((_score+2))
+				printf '%s\n' 'Metadata Node'
+				break
+			;;
+			Shrimp)
+				((_score++))
+				printf '%s\n' 'Shrimp'
+				break
+			;;
+			'AWS Migration')
+				((_score+2))
+				printf '%s\n' 'AWS Migration'
+				break
+			;;
+			*)
+				echo.error 'Unknown service selected.'
+				exit 1
+			;;
+		esac
+	done
+}
+main () {
+	clear
+	printf '%s\n' 'What cloud did the incident take place in?'
+	cloud=$(prompt.array "${_clouds[@]}")
+	clear
+	location=$(select.loc)
+	clear
+	service=$(select.service)
+}
+
+main
