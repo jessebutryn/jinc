@@ -92,7 +92,27 @@ select.service () {
 		esac
 	done
 }
-select.triton.I () {
+select.subservice () {
+	case $1 in
+		Triton)
+			select.triton
+		;;
+		Manta)
+			select.manta
+		;;
+		Network)
+			select.network
+		;;
+		Other)
+			select.other
+		;;
+		*)
+			echo.error 'Unknown service selected.'
+			exit 1
+		;;
+	esac
+}
+select.triton () {
 	select impact in Headnode 'Compute Node' Service; do
 		case $impact in
 			Headnode)
@@ -117,7 +137,7 @@ select.triton.I () {
 		esac
 	done
 }
-select.manta.I () {
+select.manta () {
 	select impact in 'Metadata Node' Shrimp 'AWS Migration'; do
 		case $impact in
 			'Metadata Node')
@@ -142,6 +162,51 @@ select.manta.I () {
 		esac
 	done
 }
+select.network () {
+	select impact in 'ToR Switch' 'Aggregate Switch' 'DC Switch'; do
+		case $impact in
+			'ToR Switch')
+				((_score++))
+				printf '%s\n' 'ToR Switch'
+				break
+			;;
+			'Aggregate Switch')
+				((_score+2))
+				printf '%s\n' 'ToR Switch'
+				break
+			;;
+			'DC Switch')
+				((_score++))
+				printf '%s\n' 'DC Switch'
+				break
+			;;
+			*)
+				echo.error 'Unknown service selected.'
+				exit 1
+			;;
+		esac
+	done
+}
+select.other () {
+	select impact in 'JPC Portal' 'SPC Portal'; do
+		case $impact in
+			'JPC Portal')
+				((_score+2))
+				printf '%s\n' 'JPC Portal'
+				break
+			;;
+			'SPC Portal')
+				((_score+2))
+				printf '%s\n' 'SPC Portal'
+				break
+			;;
+			*)
+				echo.error 'Unknown service selected.'
+				exit 1
+			;;
+		esac
+	done
+}
 main () {
 	clear
 	printf '%s\n' 'What cloud did the incident take place in?'
@@ -149,7 +214,11 @@ main () {
 	clear
 	location=$(select.loc)
 	clear
+	printf '%s\n' 'What service is affected?'
 	service=$(select.service)
+	clear
+	printf '%s\n' 'What sub-service is affected?'
+	subservice=$(select.subservice "$service")
 }
 
 main
